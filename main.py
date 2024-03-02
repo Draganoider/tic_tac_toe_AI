@@ -4,7 +4,7 @@ import torch.optim as optim
 import numpy as np
 import random
 
-# Определение класса нейронной сети для игры в "крестики-нолики"
+
 class TicTacToeNet(nn.Module):
     def __init__(self):
         super(TicTacToeNet, self).__init__()
@@ -16,103 +16,111 @@ class TicTacToeNet(nn.Module):
         x = self.fc2(x)
         return x
 
-# Создание экземпляра нейронной сети
+
 net = TicTacToeNet()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-net.to(device)  # Перемещение нейронной сети на GPU (если доступно)
+net.to(device)
 
 optimizer = optim.SGD(net.parameters(), lr=0.1)
-criterion = nn.MSELoss()  # Потери среднеквадратичной ошибки для оценки качества ходов
+criterion = nn.MSELoss()
 
-# Определение функции, которая генерирует состояние игрового поля
+
 def generate_game_state():
-    # Создайте пустое игровое поле 3x3 (0 - пусто, 1 - крестик, -1 - нолик)
     game_state = np.zeros((3, 3), dtype=np.float32)
     return game_state
 
-# Определение функции для выбора хода на основе оценок нейронной сети
+
 def select_move(game_state, net):
     game_state_flat = game_state.flatten()
     game_state_tensor = torch.tensor(game_state_flat, dtype=torch.float32)
-    game_state_tensor = game_state_tensor.to(device)  # Перемещение данных на GPU
+    game_state_tensor = game_state_tensor.to(device)
     action_scores = net(game_state_tensor)
-    valid_moves = (game_state_flat == 0)  # Определение доступных ходов
-    action_scores[~valid_moves] = -1e9  # Заглушка для недопустимых ходов
+    valid_moves = game_state_flat == 0
+    action_scores[~valid_moves] = -1e9
     best_action = torch.argmax(action_scores)
     return best_action.item()
 
-# Определение функции для оценки победителя игры
+
 def evaluate_winner(game_state):
-    # Проверяем все возможные способы выигрыша
     for row in game_state:
-        if np.all(row == 1) or np.all(row == -1):
-            return row[0]
+        if np.all(row == 1):
+            return 1
+        if np.all(row == -1):
+            return -1
 
     for col in game_state.T:
-        if np.all(col == 1) or np.all(col == -1):
-            return col[0]
+        if np.all(col == 1):
+            return 1
+        if np.all(col == -1):
+            return -1
 
     if np.all(np.diag(game_state) == 1) or np.all(np.diag(game_state) == -1):
         return game_state[0, 0]
 
-    if np.all(np.diag(np.fliplr(game_state)) == 1) or np.all(np.diag(np.fliplr(game_state)) == -1):
+    if np.all(np.diag(np.fliplr(game_state)) == 1) or np.all(
+        np.diag(np.fliplr(game_state)) == -1
+    ):
         return game_state[0, 2]
 
-    # Если нет победителя и не осталось пустых ячеек, то это ничья
     if not np.any(game_state == 0):
         return 0
 
-    # Если игра продолжается, возвращаем None
     return None
 
-# Основной цикл обучения
-# Основной цикл обучения
-epochs = 10000
+
+epochs = 30000
 for epoch in range(epochs):
-    round_number = epoch + 1  # Добавляем номер раунда
+    game_state = generate_game_state()
+    winner = None
+    player = 1  # Start with player 1 (network)
+    game_history = []
 
-    while True:
-        game_state = generate_game_state()  # Создаем новое состояние для каждого раунда
-        winner = None  # Перемещаем инициализацию winner в начало игры
+    while winner is None:
+        action = select_move(game_state * player, net)
+        action_idx = np.unravel_index(action, game_state.shape)
+        game_state[action_idx] = player
+        game_history.append((game_state.copy(), action))
 
-        while winner is None:  # Играем, пока нет победителя
-            # Выбор хода с использованием нейронной сети
-            action = select_move(game_state, net)
-
-            # Реализация хода игрока (случайный ход)
-            valid_moves = np.argwhere(game_state == 0)
-            if len(valid_moves) > 0:
-                random_choice = random.choice(valid_moves)
-                game_state[random_choice] = 1
-
-            # Оценка победителя или ничьей и вычисление целевой оценки
-            winner = evaluate_winner(game_state)
-
-            if winner is None:
-                # Перемещение данных на GPU
-                game_state_flat = game_state.flatten()
-                game_state_tensor = torch.tensor(game_state_flat, dtype=torch.float32).to(device)
-                target_score = torch.zeros(9, dtype=torch.float32).to(device)
-                target_score[action] = 1.0
-
-                # Обновление нейронной сети на основе полученной целевой оценки
-                optimizer.zero_grad()
-                action_scores = net(game_state_tensor)
-                loss = criterion(action_scores, target_score)
-                loss.backward()
-                optimizer.step()
-
-        # Вывод результата раунда
-        print(f"Round {round_number}: Winner = {winner}")
-
-        # Условие окончания игры: победитель определен или нет доступных ходов (ничья)
-        if winner is not None or len(valid_moves) == 0:
+        winner = evaluate_winner(game_state)
+        if winner is not None:
             break
 
-# Сохранение весов нейронной сети
-torch.save(net.state_dict(), 'tic_tac_toe_net.pth')
+        # Switch player
+        player *= -1
 
+        # Random move for the opponent
+        valid_moves = np.argwhere(game_state == 0)
+        if len(valid_moves) > 0:
+            random_choice = random.choice(valid_moves)
+            game_state[tuple(random_choice)] = player
+            player *= -1  # Switch back to the original player
 
+        winner = evaluate_winner(game_state)
 
+    # Update network after the game is complete
+    for state, action in game_history:
+        game_state_tensor = torch.tensor(
+            state.flatten() * player, dtype=torch.float32
+        ).to(device)
+        target_score = torch.zeros(9, dtype=torch.float32).to(device)
+        if winner == player:  # If the current player won
+            target_score[action] = 1.0
+        elif winner == 0:  # Draw
+            target_score[action] = 0.5
+        else:  # Loss
+            target_score[action] = 0
 
+        optimizer.zero_grad()
+        action_scores = net(game_state_tensor)
+        loss = criterion(action_scores, target_score)
+        loss.backward()
+        optimizer.step()
 
+    if winner == 1:
+        print(f"Epoch {epoch + 1}/{epochs}: Winner = Neural Network (Player 1)")
+    elif winner == -1:
+        print(f"Epoch {epoch + 1}/{epochs}: Winner = Random Opponent (Player 2)")
+    else:
+        print(f"Epoch {epoch + 1}/{epochs}: Draw")
+
+torch.save(net.state_dict(), "tic_tac_toe_net.pth")
