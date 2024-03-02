@@ -81,7 +81,7 @@ def evaluate_winner(board):
 
 
 # Загрузка обученной модели
-net = load_model("tic_tac_toe_net.pth")
+net = load_model("tic_tac_toe_net_v2.pth")
 
 # Инициализация игрового поля
 board = np.zeros((3, 3), dtype=int)
