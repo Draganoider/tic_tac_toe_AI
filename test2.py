@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import os
 
 
 class TicTacToeNet(nn.Module):
@@ -49,7 +50,9 @@ def select_move(net, board):
     action_scores[~valid_moves] = -1e9
     best_action = torch.argmax(action_scores)
     move = np.unravel_index(best_action.item(), board.shape)
-    print(f"Neural network (O) makes a move at ({move[0]},{move[1]})")
+    print(
+        f"Neural network ({'X' if player == 1 else 'O'}) makes a move at ({move[0]},{move[1]})"
+    )
     return move
 
 
@@ -59,54 +62,58 @@ def evaluate_winner(board):
             return 1
         if np.all(row == -1):
             return -1
-
     for col in board.T:
         if np.all(col == 1):
             return 1
         if np.all(col == -1):
             return -1
-
     if np.all(np.diag(board) == 1) or np.all(np.diag(board) == -1):
         return board[0, 0]
-
     if np.all(np.diag(np.fliplr(board)) == 1) or np.all(
         np.diag(np.fliplr(board)) == -1
     ):
         return board[0, 2]
-
     if not np.any(board == 0):
         return 0
-
     return None
 
 
-# Загрузка обученной модели
-net = load_model("tic_tac_toe_net_v2.pth")
+# Запрос у пользователя версии модели для загрузки
+version = input("Enter the model version (e.g., v1, v2): ")
+model_path = os.path.join("models", f"tic_tac_toe_net_{version}.pth")
+net = load_model(model_path)
+
+# Позволяет пользователю выбрать сторону
+player_choice = int(input("Choose your side: Enter 1 for X or -1 for O: "))
 
 # Инициализация игрового поля
 board = np.zeros((3, 3), dtype=int)
 
-print("You are playing as X.")
-print("Neural network is playing as O.")
+if player_choice == 1:
+    print("You are playing as X.")
+    print("Neural network is playing as O.")
+    player = 1  # Вы начинаете первым, играя за X
+else:
+    print("You are playing as O.")
+    print("Neural network is playing as X.")
+    player = -1  # Начните вторым, если играете за O
 
-# Игра
-player = 1  # Вы начинаете первым
 while True:
     print_board(board)
-    if player == 1:
-        print("Your turn (X).")
+    if player == player_choice:
+        print(f"Your turn ({'X' if player_choice == 1 else 'O'}).")
         row, col = get_player_move(board)
     else:
-        print("Neural network's turn (O).")
+        print(f"Neural network's turn ({'X' if player == -1 else 'O'}).")
         row, col = select_move(net, board * player)
     board[row, col] = player
 
     winner = evaluate_winner(board)
     if winner is not None or np.all(board != 0):
         print_board(board)
-        if winner == 1:
+        if winner == player_choice:
             print("Congratulations! You won!")
-        elif winner == -1:
+        elif winner != 0:
             print("Neural network won. Better luck next time!")
         else:
             print("It's a draw!")
