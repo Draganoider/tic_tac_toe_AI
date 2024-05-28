@@ -153,7 +153,7 @@ new_net = TicTacToeNet().to(device)
 optimizer = optim.SGD(new_net.parameters(), lr=0.1)
 criterion = nn.MSELoss()
 
-epochs = 50000
+epochs = 5000
 for epoch in range(epochs):
     game_state = np.zeros((3, 3), dtype=np.float32)
     winner = None
@@ -183,7 +183,7 @@ for epoch in range(epochs):
 
         #print(f"Player {player} ({'new_net' if player == 1 else 'current_net'}): Move at {action_idx}")
         #print_board(game_state)
-        #time.sleep(3)
+        #time.sleep(1)
 
         if player == 1:
             game_history.append(
