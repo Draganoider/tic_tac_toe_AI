@@ -78,25 +78,25 @@ def evaluate_winner(board):
     return None
 
 
-# Запрос у пользователя версии модели для загрузки
+# Asking for model
 version = input("Enter the model version (e.g., v1, v2): ")
 model_path = os.path.join("models", f"tic_tac_toe_net_{version}.pth")
 net = load_model(model_path)
 
-# Позволяет пользователю выбрать сторону
+# Asking to chose a side
 player_choice = int(input("Choose your side: Enter 1 for X or -1 for O: "))
 
-# Инициализация игрового поля
+
 board = np.zeros((3, 3), dtype=int)
 
 if player_choice == 1:
     print("You are playing as X.")
     print("Neural network is playing as O.")
-    player = 1  # Вы начинаете первым, играя за X
+    player = 1  # Playing as X
 else:
     print("You are playing as O.")
     print("Neural network is playing as X.")
-    player = -1  # Начните вторым, если играете за O
+    player = -1  # Playing as 0
 
 while True:
     print_board(board)
@@ -119,4 +119,4 @@ while True:
             print("It's a draw!")
         break
 
-    player *= -1  # Смена игрока
+    player *= -1  # Changing sides
